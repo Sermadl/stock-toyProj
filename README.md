@@ -68,7 +68,7 @@ Vue 3와 Spring Boot를 기반으로 하며, 로그인/로그아웃, 주식 거�
 
 ## 🔧 **기술 스택**
 - **Frontend**: Vue 3, Vue Router, Pinia  
-- **Backend**: Spring Boot, Spring Security  
+- **Backend**: Spring Boot, Spring Security, Spring JPA
 - **Database**: MariaDB  
 
 ---
