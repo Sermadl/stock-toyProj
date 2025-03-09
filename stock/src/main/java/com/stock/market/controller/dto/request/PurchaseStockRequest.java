@@ -9,5 +9,5 @@ public class PurchaseStockRequest {
     private String password;
     private Long stockId;
     private int quantity;
-//    private int price;
+    private int price;
 }

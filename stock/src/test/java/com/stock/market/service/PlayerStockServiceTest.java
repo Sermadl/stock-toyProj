@@ -5,6 +5,9 @@ import com.stock.market.controller.dto.request.SellStockRequest;
 import com.stock.market.controller.dto.response.MyStockResponse;
 import com.stock.market.model.entity.PlayerStock;
 import com.stock.market.repository.PlayerStockRepository;
+import com.stock.order.model.entity.StockOrder;
+import com.stock.order.repository.OrderRepository;
+import com.stock.order.service.OrderService;
 import com.stock.player.model.entity.Player;
 import com.stock.player.model.entity.Role;
 import com.stock.player.repository.PlayerRepository;
@@ -16,7 +19,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.core.parameters.P;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
@@ -44,6 +46,10 @@ class PlayerStockServiceTest {
     private Player player2;
     private PlayerStock playerStock1;
     private PlayerStock playerStock2;
+    @Autowired
+    private OrderService orderService;
+    @Autowired
+    private OrderRepository orderRepository;
 
     @BeforeEach
     void setUp() {
@@ -88,14 +94,14 @@ class PlayerStockServiceTest {
                 player2,
                 stock1,
                 3,
-                stock1.getPrice()
+                stock1.getCurrentPrice()
         );
 
         playerStock2 = new PlayerStock(
                 player2,
                 stock2,
                 1,
-                stock2.getPrice()
+                stock2.getCurrentPrice()
         );
 
         stockRepository.save(stock1);
@@ -129,29 +135,29 @@ class PlayerStockServiceTest {
         PurchaseStockRequest request1 = new PurchaseStockRequest(
                 "1014",
                 stock1.getId(),
-                1
-//                stock1.getPrice()
+                1,
+                stock1.getCurrentPrice()
         );
 
         PurchaseStockRequest request2 = new PurchaseStockRequest(
                 "1014",
                 stock2.getId(),
-                1
-//                stock2.getPrice()
+                1,
+                stock2.getCurrentPrice()
         );
 
         // when
-        playerStockService.purchaseStock(request1, user);
-        playerStockService.purchaseStock(request2, user);
+        orderService.buyStock(request1, user);
+        orderService.buyStock(request2, user);
 
         // then
-        PlayerStock playerStock1 = playerStockRepository.findByPlayerIdAndStockId(user, stock1.getId())
+        StockOrder order1 = orderRepository.findByPlayerIdAndStockId(user, stock1.getId())
                 .orElseThrow();
-        PlayerStock playerStock2 = playerStockRepository.findByPlayerIdAndStockId(user, stock2.getId())
+        StockOrder order2 = orderRepository.findByPlayerIdAndStockId(user, stock2.getId())
                 .orElseThrow();
 
-        assertEquals(playerStock1.getQuantity(), stock1Cnt + request1.getQuantity());
-        assertEquals(playerStock2.getQuantity(), stock2Cnt + request2.getQuantity());
+        assertEquals(order1.getPlayer().getId(), player2.getId());
+        assertEquals(order2.getPlayer().getId(), player2.getId());
     }
 
     @Test
@@ -164,28 +170,28 @@ class PlayerStockServiceTest {
         SellStockRequest request1 = new SellStockRequest(
                 "1014",
                 stock1.getId(),
-                1
-//                stock1.getPrice()
+                1,
+                stock1.getCurrentPrice()
         );
 
         SellStockRequest request2 = new SellStockRequest(
                 "1014",
                 stock2.getId(),
-                1
-//                stock2.getPrice()
+                1,
+                stock2.getCurrentPrice()
         );
 
         // when
-        playerStockService.sellStock(request1, user);
-        playerStockService.sellStock(request2, user);
+        orderService.sellStock(request1, user);
+        orderService.sellStock(request2, user);
 
         // then
-        PlayerStock playerStock1 = playerStockRepository.findByPlayerIdAndStockId(user, stock1.getId())
+        StockOrder order1 = orderRepository.findByPlayerIdAndStockId(user, stock1.getId())
                 .orElseThrow();
-        PlayerStock playerStock2 = playerStockRepository.findByPlayerIdAndStockId(user, stock2.getId())
+        StockOrder order2 = orderRepository.findByPlayerIdAndStockId(user, stock2.getId())
                 .orElseThrow();
 
-        assertEquals(playerStock1.getQuantity(), stock1Cnt - request1.getQuantity());
-        assertEquals(playerStock2.getQuantity(), stock2Cnt - request2.getQuantity());
+        assertEquals(order1.getPlayer().getId(), player2.getId());
+        assertEquals(order2.getPlayer().getId(), player2.getId());
     }
 }

@@ -18,6 +18,8 @@
               <th>Name</th>
               <th>Code</th>
               <th>Purchase Price</th>
+              <th>Current Price</th>
+              <th>Rate of Return</th>
               <th>Quantity</th>
               <th>Total Value</th>
               <th>Actions</th>
@@ -28,8 +30,10 @@
               <td>{{ stock.name }}</td>
               <td>{{ stock.code }}</td>
               <td>{{ stock.price.toLocaleString() }}</td>
+              <td>{{ stock.currentPrice }}</td>
+              <td :class="getReturnRateClass(stock)">{{ calculateReturnRate(stock) }}%</td>
               <td>{{ stock.quantity }}</td>
-              <td>{{ (stock.price * stock.quantity).toLocaleString() }}</td>
+              <td>{{ (stock.currentPrice * stock.quantity).toLocaleString() }}</td>
               <td>
                 <button @click="showSellModal(stock)">Sell</button>
               </td>
@@ -43,11 +47,16 @@
     <div class="modal" v-if="show">
       <div class="modal-content">
         <span class="close" @click="show = false">&times;</span>
-        <h3>Sell {{ sellModal.stock.name }}</h3>
-        <p>Current Price: {{ sellModal.stock.price.toLocaleString() }}</p>
+        <h3>Sell {{ sellModal.name }}</h3>
+        <p>Current Price: {{ sellModal.price }}</p>
         <p>You own: {{ sellModal.stock.quantity }}</p>
 
         <form @submit.prevent="handleSellStock">
+          <div class="form-group">
+            <label for="price">Price</label>
+            <input id="price" v-model.number="sellData.price" type="number" min="1" required />
+          </div>
+
           <div class="form-group">
             <label for="sell-quantity">Quantity to Sell</label>
             <input
@@ -88,6 +97,7 @@ export default {
     const stocks = ref([])
     const loading = ref(true)
     const error = ref('')
+    let eventSource = null
 
     const sellModal = ref({
       name: '',
@@ -105,6 +115,61 @@ export default {
     const sellError = ref('')
     const sellSuccess = ref(false)
     const show = ref(false)
+
+    // SSE 설정
+    const setupEventSource = () => {
+      if (eventSource) {
+        eventSource.close()
+      }
+      eventSource = new EventSource('http://localhost:8080/stock/price')
+
+      eventSource.addEventListener('stock-update', (event) => {
+        try {
+          console.log('Received SSE data: ', event.data)
+
+          const newStocks = JSON.parse(event.data)
+          newStocks.forEach((stockUpdate) => {
+            const stock = stocks.value.find((s) => s.id === stockUpdate.id)
+            if (stock) {
+              stock.currentPrice = stockUpdate.currentPrice
+              stock.percentChange = stockUpdate.percentChange
+
+              if (show.value && sellData.value && sellData.value.stockId === stockUpdate.id) {
+                sellModal.value.price = stockUpdate.currentPrice
+                // Don't automatically update the user's input price
+              }
+            }
+          })
+        } catch (err) {
+          console.error('Error parsing SSE data:', err)
+        }
+      })
+
+      eventSource.onerror = () => {
+        console.error('SSE connection error')
+        eventSource.close()
+        setTimeout(setupEventSource, 3000)
+      }
+    }
+
+    onMounted(() => {
+      setupEventSource()
+    })
+
+    const calculateReturnRate = (stock) => {
+      if (!stock.currentPrice || !stock.price) return '0.00'
+      const returnRate = ((stock.currentPrice - stock.price) / stock.price) * 100
+      return returnRate.toFixed(2)
+    }
+
+    const getReturnRateClass = (stock) => {
+      const returnRate = calculateReturnRate(stock)
+      return parseFloat(returnRate) < 0
+        ? 'price-down'
+        : parseFloat(returnRate) > 0
+          ? 'price-up'
+          : ''
+    }
 
     const loadPortfolio = async () => {
       try {
@@ -130,6 +195,7 @@ export default {
       }
       sellData.value = {
         stockId: stock.id,
+        price: 0,
         quantity: 1,
         password: '',
       }
@@ -165,6 +231,8 @@ export default {
       sellModal,
       sellData,
       show,
+      calculateReturnRate,
+      getReturnRateClass,
       sellError,
       sellSuccess,
       showSellModal,
@@ -297,6 +365,17 @@ input:focus {
 
 input[type='password'] {
   letter-spacing: 0.1em;
+}
+
+/* 수익률 색상 - 음수면 파란색, 양수면 빨간색 */
+.price-up {
+  color: #dc3545; /* 빨간색 (오름) */
+  font-weight: bold;
+}
+
+.price-down {
+  color: #007bff; /* 파란색 (내림) */
+  font-weight: bold;
 }
 
 /* Modal styles */

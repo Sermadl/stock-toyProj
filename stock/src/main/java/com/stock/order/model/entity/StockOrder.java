@@ -1,4 +1,4 @@
-package com.stock.market.model.entity;
+package com.stock.order.model.entity;
 
 import com.stock.global.util.BaseEntity;
 import com.stock.player.model.entity.Player;
@@ -7,12 +7,13 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
-public class PlayerStock extends BaseEntity {
+public class StockOrder extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,26 +27,20 @@ public class PlayerStock extends BaseEntity {
     @JoinColumn(name = "stock_id", nullable = false)
     private Stock stock;
 
+    @Enumerated(EnumType.STRING)
+    private Type type;
+    private int targetPrice;
     private int quantity;
-    private int price;
+    @Setter
+    @Enumerated(EnumType.STRING)
+    private Status status;
 
-    public PlayerStock(Player player, Stock stock, int quantity, int buyPrice) {
+    public StockOrder(Player player, Stock stock, int price, int quantity, Type type) {
         this.player = player;
         this.stock = stock;
+        this.targetPrice = price;
         this.quantity = quantity;
-        this.price = buyPrice;
-    }
-
-    public void purchaseMore(int quantity, int price) {
-        int totalCost = (this.quantity* this.price) + (quantity * price);
-        int totalQuantity = this.quantity + quantity;
-        int newAveragePrice = (int) Math.round((double) totalCost / totalQuantity);
-
-        this.quantity = totalQuantity;
-        this.price = newAveragePrice;
-    }
-
-    public void sellStock(int quantity) {
-        this.quantity -= quantity;
+        this.type = type;
+        this.status = Status.PENDING;
     }
 }

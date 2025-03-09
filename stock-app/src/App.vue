@@ -50,10 +50,10 @@ export default {
 
     const handleLogout = async () => {
       try {
-        await logout()
-        localStorage.removeItem('isLoggedIn')
         isLoggedIn.value = false
+        localStorage.removeItem('isLoggedIn')
         router.push('/login') // 로그아웃 후 로그인 페이지로 이동
+        await logout()
       } catch (error) {
         console.error('Logout failed:', error)
       }

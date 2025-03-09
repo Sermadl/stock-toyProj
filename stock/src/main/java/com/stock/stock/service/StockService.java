@@ -27,7 +27,7 @@ public class StockService {
                             stock.getId(),
                             stock.getName(),
                             stock.getCode(),
-                            stock.getPrice()
+                            stock.getCurrentPrice()
                     )
                 ).toList();
     }
@@ -40,7 +40,7 @@ public class StockService {
                 stock.getId(),
                 stock.getName(),
                 stock.getCode(),
-                stock.getPrice()
+                stock.getCurrentPrice()
         );
     }
 
@@ -78,4 +78,7 @@ public class StockService {
 
         return stock;
     }
+
+
+
 }

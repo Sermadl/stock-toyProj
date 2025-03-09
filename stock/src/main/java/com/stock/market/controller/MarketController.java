@@ -5,6 +5,7 @@ import com.stock.market.controller.dto.request.PurchaseStockRequest;
 import com.stock.market.controller.dto.request.SellStockRequest;
 import com.stock.market.controller.dto.response.MyStockResponse;
 import com.stock.market.service.PlayerStockService;
+import com.stock.order.service.OrderService;
 import com.stock.stock.controller.dto.response.StockResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -20,12 +21,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MarketController extends CommonController {
     private final PlayerStockService playerStockService;
+    private final OrderService orderService;
 
     // 주식 구매
     @PostMapping("/purchase")
     public String purchaseStock(@RequestBody PurchaseStockRequest request,
                                 HttpServletRequest servletRequest) {
-        playerStockService.purchaseStock(request, getLoginPlayerId(servletRequest));
+        orderService.buyStock(request, getLoginPlayerId(servletRequest));
 
         return "Purchase Stock Succeed";
     }
@@ -34,7 +36,7 @@ public class MarketController extends CommonController {
     @PostMapping("/sell")
     public String sellStock(@RequestBody SellStockRequest request,
                             HttpServletRequest servletRequest) {
-        playerStockService.sellStock(request, getLoginPlayerId(servletRequest));
+        orderService.sellStock(request, getLoginPlayerId(servletRequest));
 
         return "Sell Stock Succeed";
     }

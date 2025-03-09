@@ -90,14 +90,14 @@ class StockServiceTest {
                 player2,
                 stock1,
                 3,
-                stock1.getPrice()
+                stock1.getCurrentPrice()
         );
 
         playerStock2 = new PlayerStock(
                 player2,
                 stock2,
                 1,
-                stock2.getPrice()
+                stock2.getCurrentPrice()
         );
 
         stockRepository.save(stock1);

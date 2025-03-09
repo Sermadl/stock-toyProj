@@ -19,6 +19,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/stock/**")
                 .excludePathPatterns("/player/login",
                         "/player/register",
-                        "/stock/all");
+                        "/stock/all",
+                        "/stock/price"
+                );
     }
 }

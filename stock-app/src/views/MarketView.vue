@@ -13,6 +13,7 @@
             <th>Name</th>
             <th>Code</th>
             <th>Price</th>
+            <th>Change</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -20,7 +21,8 @@
           <tr v-for="stock in stocks" :key="stock.code">
             <td>{{ stock.name }}</td>
             <td>{{ stock.code }}</td>
-            <td>{{ stock.price.toLocaleString() }}</td>
+            <td>{{ stock.currentPrice }}</td>
+            <td :class="getPriceChangeClass(stock)">{{ stock.percentChange }}</td>
             <td>
               <button @click="showPurchaseModal(stock)">Buy</button>
             </td>
@@ -34,9 +36,14 @@
       <div class="modal-content">
         <span class="close" @click="show = false">&times;</span>
         <h3>Purchase {{ purchaseModal.name }}</h3>
-        <p>Current Price: {{ purchaseModal.price.toLocaleString() }}</p>
+        <p>Current Price: {{ purchaseModal.price }}</p>
 
-        <form @submit.prevent="handlePurchase">
+        <form @submit.prevent="handlePurchase(purchaseModal)">
+          <div class="form-group">
+            <label for="price">Price</label>
+            <input id="price" v-model.number="purchaseData.price" type="number" min="1" required />
+          </div>
+
           <div class="form-group">
             <label for="quantity">Quantity</label>
             <input
@@ -54,7 +61,7 @@
           </div>
 
           <div class="total-cost">
-            Total Cost: {{ (purchaseData.quantity * purchaseModal.price).toLocaleString() }}
+            Total Cost: {{ (purchaseData.quantity * purchaseData.targetPrice).toLocaleString() }}
           </div>
 
           <button type="submit" class="submit-btn purchase-btn">Confirm Purchase</button>
@@ -67,7 +74,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { purchaseStock } from '@/api/market'
 import { getAllStocks } from '@/api/stock'
 
@@ -76,7 +83,11 @@ export default {
   setup() {
     const stocks = ref([])
     const loading = ref(true)
+    const lastUpdated = ref(null)
+    const timerCount = ref(0)
     const error = ref('')
+    let eventSource = null
+    let timerInterval = null
 
     const purchaseModal = ref({
       name: '',
@@ -88,11 +99,84 @@ export default {
       password: '',
       stockId: 0,
       quantity: 0,
+      price: 0,
     })
 
     const purchaseError = ref('')
     const purchaseSuccess = ref(false)
     const show = ref(false)
+
+    // SSE 설정
+    const setupEventSource = () => {
+      if (eventSource) {
+        eventSource.close()
+      }
+      eventSource = new EventSource('http://localhost:8080/stock/price')
+
+      eventSource.addEventListener('stock-update', (event) => {
+        try {
+          console.log('Received SSE data: ', event.data)
+
+          const newStocks = JSON.parse(event.data)
+          newStocks.forEach((stockUpdate) => {
+            const stock = stocks.value.find((s) => s.id === stockUpdate.id)
+            if (stock) {
+              stock.currentPrice = stockUpdate.currentPrice
+              stock.percentChange = stockUpdate.percentChange
+
+              if (
+                show.value &&
+                purchaseModal.value &&
+                purchaseData.value.stockId === stockUpdate.id
+              ) {
+                purchaseModal.value.price = stockUpdate.currentPrice
+                // Don't automatically update the user's input price
+              }
+            }
+          })
+        } catch (err) {
+          console.error('Error parsing SSE data:', err)
+        }
+      })
+
+      eventSource.onerror = () => {
+        console.error('SSE connection error')
+        eventSource.close()
+        setTimeout(setupEventSource, 3000)
+      }
+    }
+
+    // REST API로 초기 데이터 가져오기 (SSE가 실패할 경우 대비)
+    const fetchStocksData = async () => {
+      try {
+        const response = await getAllStocks()
+        stocks.value = response
+        loading.value = false
+      } catch (err) {
+        error.value = 'Failed to load stocks. Please try again later.'
+        console.error('Error loading stocks:', err)
+      }
+    }
+
+    // 변동 감지
+    const getPriceChangeClass = (stock) => {
+      return stock.percentChange > 0 ? 'price-up' : stock.percentChange < 0 ? 'price-down' : ''
+    }
+
+    const timerWidth = computed(() => (timerCount.value / 10) * 100)
+    const formattedLastUpdated = computed(() =>
+      lastUpdated.value ? lastUpdated.value.toLocaleTimeString() : '-',
+    )
+
+    onMounted(() => {
+      setupEventSource()
+      fetchStocksData()
+    })
+
+    onUnmounted(() => {
+      if (eventSource) eventSource.close()
+      if (timerInterval) clearInterval(timerInterval)
+    })
 
     onMounted(async () => {
       try {
@@ -111,12 +195,13 @@ export default {
       purchaseModal.value = {
         name: stock.name,
         code: stock.code,
-        price: stock.price,
+        price: stock.currentPrice,
       }
       purchaseData.value = {
         password: '',
         stockId: stock.id,
         quantity: 0,
+        price: 0,
       }
 
       console.log('stock id: ', stock.id)
@@ -156,6 +241,9 @@ export default {
       purchaseError,
       purchaseSuccess,
       handlePurchase,
+      getPriceChangeClass,
+      formattedLastUpdated,
+      timerWidth,
     }
   },
 }
@@ -282,6 +370,16 @@ input.error {
 
 input[type='password'] {
   letter-spacing: 0.1em;
+}
+
+.price-down {
+  color: #007bff; /* 파란색 (내림) */
+  font-weight: bold;
+}
+
+.price-up {
+  color: #dc3545; /* 빨간색 (오름) */
+  font-weight: bold;
 }
 
 /* Modal styles */
